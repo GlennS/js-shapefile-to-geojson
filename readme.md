@@ -1,58 +1,21 @@
 This project allows a user to load Shapefiles and DBFs into the browser with JavaScript.
 Outputs as [GeoJSON](http://geojson.org/) for use with other Mapping APIs such as [OpenLayers](http://openlayers.org).
 
+A fork produced by Glenn Searby for the Centre for Sustainable Energy.
+https://github.com/GlennS/js-shapefile-to-geojson
+
+Original by Marc Harter https://github.com/wavded/js-shapefile-to-geojson
+
 Inspired by the excellent work by Tom Carden ([http://github.com/RandomEtc/shapefile-js/](http://github.com/RandomEtc/shapefile-js/)).
 
 ### Overview
+First, use the Files API to load your .shp and .dbf files as binary.
 
-I just got this out there so nothing is minified.  See index.html for an example of order.  All files need to be in the same directory.  This will use Web Workers if the browser support exists.  Not recommended for large files, more of an experiment than anything.
-
-### Running the Example
-
-Host the files (example won't run off disk, needs to be ran on a web server), a simple way to do this is run the following command in the project root:
-
-```sh
-python -m SimpleHTTPServer
-```
-
-And visit http://localhost:8000 in your favorite browser.
-
-### Usage
-
-You can use it to parse shapefiles (.shp) or dBase files (.dbf) or both.  Here are some examples.
-
-Load Shapefile Only
-
-    new Shapefile("myshapefile.shp", function (data) {
-        // data returned
-    });
-
-Load DBF Only
-
-    new DBF("mydbf.dbf", function (data) {
-        // data returned
-    });
-
-Load Shapefile w/ DBF Attributes
-
-    new Shapefile({
-        shp: "myshape.shp",
-        dbf: "myshape.dbf"
-    }, function (data) {
-        // data returned
-    });
-
-Use with OpenLayers
-
-    var parser = new OpenLayer.Format.GeoJSON(),
-        features;
-
-    new Shapefile({
-        shp: "myshape.shp",
-        dbf: "myshape.dbf"
-    }, function (data) {
-        features = parser.read(data.geojson);
-    });
+Then:
+var shape = Shapefile(shpData); // Parse the .shp file.
+var dbf = DBF(dbfData); // Parse the .dbf file.
+shape.addDBFDataToGeoJSON(dbf); 
+var geojson = shape.geojson;
 
 ### Resources
 
@@ -61,12 +24,6 @@ I used the technical descriptions found here to parse the binary:
 > [ESRI Shapefile Technical Description - PDF](http://www.esri.com/library/whitepapers/pdfs/shapefile.pdf)
 
 > [dBase (Xbase) File Format Description](http://www.dbf2002.com/dbf-file-format.html)
-
-### Future
-
-I plan to implement (time permitting) some custom renderers like SVG or Canvas (besides using OpenLayers) to improve the speed.
-
-Feel free to hack at this, submit bugs, pull requests, and make it better.  If you write a renderer, please push it back and I'll add it to the project.
 
 ### License
 
