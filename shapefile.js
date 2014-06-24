@@ -1,6 +1,6 @@
 "use strict";
 
-/* global Gordon*/
+/*global makeStream*/
 
 (function(window,undefined){
 
@@ -21,8 +21,10 @@
         "31": "MultiPatch"
     };
 
+
+
     var parse = function(data) {
-	var s = new Gordon.Stream(data);
+	var s = makeStream(data);
 
     	var read = {
 	    "Bounds" : function(object){
@@ -101,7 +103,7 @@
                 throw "Invalid File Code";
 
 	    // Unused; five uint32
-	    s.offset += 4 * 5;
+	    s.offset(4 * 5);
 
 	    // File length (in 16-bit words, including the header)
 	    header.fileLength = s.readSI32(true) * 2;
@@ -135,9 +137,15 @@
                 var record = {};
 
                 // Record number (1-based)
-                record.id = s.readSI32(true);
-
-                if(record.id == 0) break; //no more records
+		try {
+                    record.id = s.readSI32(true);
+		} catch (err) {
+		    if (err instanceof RangeError) {
+			break;
+		    } else {
+			throw err;
+		    }
+		}
 
                 // Record length (in 16-bit words)
                 record.length = s.readSI32(true) * 2;
