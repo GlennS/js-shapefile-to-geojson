@@ -1,0 +1,14 @@
+{
+    "name": "js-shapefile-to-geojson--",
+    "version": "0.2.0",
+    "description": "Convert Shapefile to GeoJSON in the browser, forked and rewritten without web workers.",
+    "license": "MIT",
+    "repository" : {
+	"type": "git",
+	"url": "git://github.com/GlennS/js-shapefile-to-geojson.git"
+    },
+    "main": "src/main.js",
+    "dirs": {
+	"src": "src"
+    }
+}
