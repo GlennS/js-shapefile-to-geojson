@@ -1,8 +1,8 @@
 "use strict";
 
-/*global*/
+/*global module*/
 
-var makeStream = function(data) {
+module.exports = function(data) {
     var view = new DataView(data),
 	position = 0;
 
