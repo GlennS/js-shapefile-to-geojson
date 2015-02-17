@@ -151,7 +151,11 @@ var parse = function(data) {
             record.shapeType = SHAPE_TYPES[s.readSI32()];
 
             // Read specific shape
-            read[record.shapeType](record);
+	    var readF = read[record.shapeType];
+	    if (!readF) {
+		throw new Error("Unimplemented shape type " + record.shapeType);
+	    }
+	    readF(record);
 
             records.push(record);
 
