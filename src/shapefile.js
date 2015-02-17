@@ -71,20 +71,20 @@ var parse = function(data) {
 	    return record;
         },
 	"MultiPoint" : function(record){
-	    this["Bounds"](record);
-	    this["Points"](record);
+	    read["Bounds"](record);
+	    read["Points"](record);
 
 	    return record;
         },
 	"Polygon" : function(record){
-	    this["Bounds"](record);
-	    this["Parts"](record);
-	    this["Points"](record);
+	    read["Bounds"](record);
+	    read["Parts"](record);
+	    read["Points"](record);
 
 	    return record;
         },
 	"PolyLine" : function(record){
-	    return this["Polygon"](record);
+	    return read["Polygon"](record);
         }
     };
     
