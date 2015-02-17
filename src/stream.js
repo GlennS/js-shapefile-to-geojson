@@ -2,6 +2,8 @@
 
 /*global module*/
 
+var nullValue = "************************";
+
 module.exports = function(data) {
     var view = new DataView(data),
 	position = 0;
@@ -37,7 +39,9 @@ module.exports = function(data) {
 		    view.getUint8(position)));
 		position++;
 	    }
-	    return buff.join('');
+	    var result = buff.join('');
+	    
+	    return result === nullValue ? "" : result;
 	}  
     };
 };
