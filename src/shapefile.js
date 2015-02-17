@@ -1,7 +1,6 @@
 "use strict";
 
 /*global require, module*/
-
 var makeStream = require("./stream.js");
 
 var SHAPE_TYPES = {
@@ -24,68 +23,195 @@ var SHAPE_TYPES = {
 var parse = function(data) {
     var s = makeStream(data);
 
+    /*
+     See ESRI Shapefile specification: http://www.esri.com/library/whitepapers/pdfs/shapefile.pdf
+
+     Helper functions (not in the spec) are commented.
+
+     Other functions represent named shape types from the specification.
+
+     Does not currently support:
+      + 'Null Shape' (because there is no clear need for it).
+      + 'MultiPatch' (because it is complicated and we are working with 2D maps).
+    */
     var read = {
-	"Bounds" : function(object){
-	    object.bounds = {
+	/*
+	 Not from spec: read a 2D bounding box.
+	 */
+	Bounds: function(record){
+	    record.bounds = {
                 left: s.readDouble(),
                 bottom: s.readDouble(),
                 right: s.readDouble(),
                 top: s.readDouble()
 	    };
-
-	    return object;
         },
-	"Parts" : function(record){
-	    var nparts, parts = [];
+	/*
+	 Not from spec: reads some number of lines segments.
+	 */
+	Parts: function(record){
+	    var parts = [];
 
-	    nparts = record.numParts = s.readSI32();
+	    record.numParts = s.readSI32();
 
-	    // since number of points always proceeds number of parts, capture it now
+	    // Every shape which has parts also has points, and the number of points is always in this position.
 	    record.numPoints = s.readSI32();
 
 	    // parts array indicates at which index the next part starts at
-	    while(nparts--) parts.push(s.readSI32());
-
+	    for (var i = 0; i < record.numParts; i++) {
+		parts.push(
+		    s.readSI32()
+		);
+	    }
+	    
 	    record.parts = parts;
-
-	    return record;
         },
-	"Point" : function(record){
-	    record.x = s.readDouble();
-	    record.y = s.readDouble();
+	/*
+	 Not from spec: read a collection of points within a record.
+	 */
+	Points: function(record){
+	    var points = [];
 
-	    return record;
-        },
-	"Points" : function(record){
-	    var points = [],
-                npoints = record.numPoints || (record.numPoints = s.readSI32());
+	    record.numPoints = record.numPoints || s.readSI32();
 
-	    while(npoints--)
+	    for (var i = 0; i < record.numPoints; i++) {
                 points.push({
 		    x: s.readDouble(),
 		    y: s.readDouble()
                 });
+	    }
 
 	    record.points = points;
-
-	    return record;
         },
-	"MultiPoint" : function(record){
-	    read["Bounds"](record);
-	    read["Points"](record);
 
-	    return record;
-        },
-	"Polygon" : function(record){
-	    read["Bounds"](record);
-	    read["Parts"](record);
-	    read["Points"](record);
+	/*
+	 Not from spec: reads the min and max measure values.
+	 */
+	MeasureRange: function(record) {
+	    if (!record.bounds) {
+		throw new Error("Attempted to set measure range before bounding box.");
+	    }
+	    record.bounds.measureMin = s.readDouble();
+	    record.bounds.measureMax = s.readDouble();
+	},
 
-	    return record;
+	/*
+	 Not from spec: reads the measure value for each point.
+	 */
+	MeasureArray: function(record) {
+	    if (record.numPoints === undefined) {
+		throw new Error("Attempted to set measure array before points.");
+	    }
+
+	    for (var i = 0; i < record.numPoints; i++) {
+		record.points[i].measure = s.readDouble();
+	    }
+	},
+
+	/*
+	 Not from spec: reads the deepest and shallowest Z values onto the bounding box.
+	 */
+	ZBounds: function(record) {
+	    if (!record.bounds) {
+		throw new Error("Attempted to set Z bounds before X & Y bounds.");
+	    }
+
+	    record.bounds.zMin = s.readDouble();
+	    record.bounds.zMax = s.readDouble();
+	},
+
+	/*
+	 Not from spec: reads the Z value for each point and puts it on the point object.
+	 */
+	ZArray: function(record) {
+	    if (record.numPoints === undefined) {
+		throw new Error("Attempted to set Z array before points.");
+	    }
+
+	    for (var i = 0; i < record.numPoints; i++) {
+		record.points[i].z = s.readDouble();
+	    }
+	},
+
+	MultiM: function(record) {
+	    read.MeasureRange(record);
+	    read.MeasureArray(record);	    
+	},
+
+	MultiZAndM: function(record) {
+	    read.ZBounds(record);
+	    read.ZArray(record);
+
+	    read.MultiM(record);
+	},
+
+	NullShape: function(record) {
+	    throw new Error("Null shape not implemented.");
+	},
+	
+	Point: function(record) {
+	    record.x = s.readDouble();
+	    record.y = s.readDouble();
         },
-	"PolyLine" : function(record){
-	    return read["Polygon"](record);
-        }
+	
+	PolyLine: function(record) {
+	    read.Polygon(record);
+        },
+	
+	Polygon: function(record) {
+	    read.Bounds(record);
+	    read.Parts(record);
+	    read.Points(record);
+        },
+
+	MultiPoint: function(record) {
+	    read.Bounds(record);
+	    read.Points(record);
+        },
+
+	PointZ: function(record) {
+	    read.Point(record);
+
+	    record.z = s.readDouble();
+	    record.measure = s.readDouble();
+	},
+
+	PolyLineZ: function(record) {
+	    read.PolyonZ(record);
+	},
+
+	PolygonZ: function(record) {
+	    read.Polygon(record);
+	    read.MultiZAndM(record);
+	},
+
+	MultiPointZ: function(record) {
+	    read.MultiPoint(record);
+	    read.MultiZAndM(record);
+	},	
+	
+	PointM: function(record) {
+	    read.Point(record);
+	    record.measure = s.readDouble();
+	},
+
+	PolyLineM: function(record) {
+	    read.PolygonM(record);
+	},
+
+	PolygonM: function(record) {
+	    read.Polygon(record);
+	    read.MultiM(record);
+	},
+
+	MultiPointM: function(record) {
+	    read.MultiPoint(record);
+	    read.MultiM(record);
+	},
+
+	MultiPatch: function(record) {
+	    throw new Error("MultiPatch not implemented.");
+	}
     };
     
     var readFileHeader = function(){
@@ -203,22 +329,36 @@ module.exports =  function(data) {
 
 	switch (record.shapeType) {
 	case "Point":
+	case "PointZ":
+	case "PointM":
             geometry.type = "Point";
             geometry.coordinates = [
 		record.x,
-		record.y ];
+		record.y
+	    ];
             break;
+	    
 	case "MultiPoint":
+	case "MultiPointZ":
+	case "MultiPointM":
 	case "PolyLine":
+	case "PolyLineZ":
+	case "PolyLineM":
             geometry.type = (record.shapeType == "PolyLine" ? "LineString" : "MultiPoint");
             gcoords = geometry.coordinates = [];
 
             for (var p = 0; p < points.length; p++){
 		var polyLinePoint = points[p];
-		gcoords.push([polyLinePoint.x,polyLinePoint.y]);
+		gcoords.push([
+		    polyLinePoint.x,
+		    polyLinePoint.y
+		]);
             }
             break;
+	    
 	case "Polygon":
+	case "PolygonZ":
+	case "PolygonM":
             geometry.type = "Polygon";
             gcoords = geometry.coordinates = [];
 
@@ -230,13 +370,18 @@ module.exports =  function(data) {
 		// partIndex 0 == main poly, partIndex > 0 == holes in poly
 		for (var i = partIndex; i < (parts[pt+1] || points.length); i++){
                     polygonPoint = points[i];
-                    part.push([polygonPoint.x, polygonPoint.y]);
+                    part.push([
+			polygonPoint.x,
+			polygonPoint.y
+		    ]);
 		}
 		gcoords.push(part);
             }
             break;
 	default:
+	    throw new Error("Unsupported feature type " + record.shapeType);
 	}
+	
 	features.push(feature);
     }
 
