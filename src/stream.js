@@ -12,6 +12,10 @@ module.exports = function(data) {
 	offset: function(n) {
 	    position += n;
 	},
+
+	getOffset: function() {
+	    return position;
+	},
 	readDouble: function (bigEndian) {
 	    position += 8;
 	    return view.getFloat64(position - 8, !bigEndian);

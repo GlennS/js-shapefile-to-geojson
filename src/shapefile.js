@@ -21,7 +21,7 @@ var SHAPE_TYPES = {
 };
 
 var parse = function(data) {
-    var s = makeStream(data);
+    var s = makeStream(data),
 
     /*
      See ESRI Shapefile specification: http://www.esri.com/library/whitepapers/pdfs/shapefile.pdf
@@ -34,7 +34,7 @@ var parse = function(data) {
       + 'Null Shape' (because there is no clear need for it).
       + 'MultiPatch' (because it is complicated and we are working with 2D maps).
     */
-    var read = {
+	read = {
 	/*
 	 Not from spec: read a 2D bounding box.
 	 */
@@ -134,14 +134,17 @@ var parse = function(data) {
 	},
 
 	MultiM: function(record) {
-	    read.MeasureRange(record);
-	    read.MeasureArray(record);	    
+	    if (record.startOffset + record.length > s.getOffset()) {
+		read.MeasureRange(record);
+		read.MeasureArray(record);
+	    } else {
+		// Noop, these optional fields have been ommitted for this record.
+	    }
 	},
 
 	MultiZAndM: function(record) {
 	    read.ZBounds(record);
 	    read.ZArray(record);
-
 	    read.MultiM(record);
 	},
 
@@ -229,7 +232,7 @@ var parse = function(data) {
 	// Unused; five uint32
 	s.offset(4 * 5);
 
-	// File length (in 16-bit words, including the header)
+	// File length (converted here from 16-bit words to bytes; includes the header).
 	header.fileLength = s.readSI32(true) * 2;
 
 	header.version = s.readSI32();
@@ -271,11 +274,13 @@ var parse = function(data) {
 		}
 	    }
 
-            // Record length (in 16-bit words)
+            // Record length (converted here from 16-bit words to bytes).
             record.length = s.readSI32(true) * 2;
 
+	    // Needed in combination with the record length so that we can work out whether or not to include optional fields.
+	    record.startOffset = s.getOffset();
             record.shapeType = SHAPE_TYPES[s.readSI32()];
-
+	    
             // Read specific shape
 	    var readF = read[record.shapeType];
 	    if (!readF) {
