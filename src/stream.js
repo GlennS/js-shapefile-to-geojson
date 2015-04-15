@@ -2,7 +2,7 @@
 
 /*global module*/
 
-var nullValue = "************************";
+var nullChar = "*";
 
 module.exports = function(data) {
     var view = new DataView(data),
@@ -37,15 +37,22 @@ module.exports = function(data) {
 	    return view.getUint8(position - 1);
 	},
 	readString: function(n) {
-	    var buff = [];
+	    var buff = [],
+		allNull = true;
+	    
 	    for (var i = 0; i < n; i++) {
-		buff.push(String.fromCharCode(
-		    view.getUint8(position)));
+		var char = String.fromCharCode(
+		    view.getUint8(position));
+
+		if (allNull && char !== nullChar) {
+		    allNull = false;
+		}
+		
+		buff.push(char);
 		position++;
 	    }
-	    var result = buff.join('');
 	    
-	    return result === nullValue ? "" : result;
+	    return allNull ? "" : buff.join('');
 	}  
     };
 };
